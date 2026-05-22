@@ -8,23 +8,40 @@ fprintf('     MPEI - TESTE DO MÓDULO MINHASH      \n');
 fprintf('=========================================================\n\n');
 
 % Carregar e Preparar os Dados (MovieLens)
-if ~exist('u.data', 'file')
-    error('Erro: O ficheiro "u.data" não foi encontrado na pasta raiz do projeto.');
-end
+% if ~exist('u.data', 'file')
+    % error('Erro: O ficheiro "u.data" não foi encontrado na pasta raiz do projeto.');
+% end
 
-fprintf('A carregar o dataset "u.data"... \n');
-udata = load("u.data");  
-u = udata(:, 1:2);      % Fica apenas com as duas primeiras colunas (User, Movie)
-clear udata;
+% fprintf('A carregar o dataset "u.data"... \n');
+% udata = load("u.data");  
+% u = udata(:, 1:2);      % Fica apenas com as duas primeiras colunas (User, Movie)
+% clear udata;
 
-users = unique(u(:,1)); % Extrai os IDs únicos dos utilizadores 
-Nu = length(users);     % Número total de utilizadores 
+% users = unique(u(:,1)); % Extrai os IDs únicos dos utilizadores 
+% Nu = length(users);     % Número total de utilizadores 
 
-fprintf('A processar os conjuntos de filmes para %d utilizadores...\n\n', Nu);
-Set = cell(Nu, 1); % Constroi a lista de filmes avaliados por cada user 
+% fprintf('A processar os conjuntos de filmes para %d utilizadores...\n\n', Nu);
+% Set = cell(Nu, 1); % Constroi a lista de filmes avaliados por cada user 
+% for n = 1:Nu
+    % ind = find(u(:,1) == users(n)); 
+    % Set{n} = u(ind, 2);             % Guarda os IDs dos filmes num array de células 
+% end
+
+% === CARREGAR DATASET DE NOTÍCIAS ===
+k_hash = 100; 
+mh = minHash(k_hash); 
+tabela_news = readtable('news.csv', 'VariableNamingRule', 'preserve'); 
+Nu = min(1000, height(tabela_news));   
+
+fprintf('A processar e a criar shingles para %d notícias...\n\n', Nu);
+Set = cell(Nu, 1); 
 for n = 1:Nu
-    ind = find(u(:,1) == users(n)); 
-    Set{n} = u(ind, 2);             % Guarda os IDs dos filmes num array de células 
+    if any(strcmp(tabela_news.Properties.VariableNames, 'Title'))
+        texto = tabela_news.Title{n};
+    else
+        texto = tabela_news{n, 2}; 
+    end
+    Set{n} = mh.createShingles(char(texto), 3); 
 end
 
 % Cálculo das Distâncias Reais (Jaccard Exato)
