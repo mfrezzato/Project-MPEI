@@ -56,7 +56,7 @@ classdef minHash
             end
 
             % Se os dados forem texto converte para IDs numéricos
-            if iscell(elements) || isstring(elements);
+            if iscell(elements || isstring(elements));
                 numericIds = zeros(1, length(elements));
                 for i = 1:length(elements)
 
@@ -83,13 +83,7 @@ classdef minHash
         function similarity = compareSignatures(~, sig1, sig2)
 
             % Retorna a fração de linhas onde os hashes coincidem
-            similarity = sum(sig1 == sig2) / length(sig1);
-        end
-
-        % Calcular a Distância de Jaccard estimada
-        function distance = distanceJaccard(obj, sig1, sig2)
-            distance = 1 - obj.compareSignatures(sig1, sig2);
-        end
+            simila
     end
 end
 
