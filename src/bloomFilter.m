@@ -19,8 +19,6 @@ classdef bloomFilter
                 type = 'classic';
             end
 
-            % Factor de segurança 1.5x para compensar correlação entre
-            % funções hash reais (a fórmula teórica assume independência perfeita)
             obj.numBits   = ceil(1.5 * (-expectedItems * log(fpRate) / (log(2)^2)));
             obj.numHashes = max(1, round((obj.numBits / expectedItems) * log(2)));
             obj.type      = type;
@@ -81,9 +79,6 @@ classdef bloomFilter
         end
         
         % Calcula as K posições no array para um dado elemento.
-        % Usa dois hashes independentes (djb2 + sdbm) combinados com as
-        % seeds aleatórias: pos_i = (h1 + i*h2 + seed_i) mod numBits
-        % Isto garante distribuição uniforme e independência entre as K funções.
         function positions = hashPositions(obj, element)
             if isnumeric(element)
                 raw = double(num2str(element));
