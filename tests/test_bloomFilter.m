@@ -7,7 +7,7 @@ fprintf('=========================================================\n\n');
 % Adicionar as pastas ao path para o Matlab encontrar o src/bloomFilter.m
 addpath(genpath(pwd));
 
-% === CARREGAR DATASET DE NOTÍCIAS ===
+% Carregar o dataset de notícias
 tabela_news = readtable('news.csv', 'VariableNamingRule', 'preserve'); 
 
 Nu = min(2000, height(tabela_news));   

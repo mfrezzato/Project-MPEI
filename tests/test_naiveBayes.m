@@ -7,7 +7,7 @@ fprintf('=========================================================\n\n');
 % Adicionar as pastas ao path para o Matlab encontrar o src/naiveBayes.m
 addpath(genpath(pwd));
 
-% === CARREGAR DATASET DE NOTÍCIAS ===
+% Carregar Dataset de Notícias
 opts = detectImportOptions('news.csv', 'VariableNamingRule', 'preserve');
 tabela_news = readtable('news.csv', opts); 
 

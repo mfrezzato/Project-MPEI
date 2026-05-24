@@ -7,6 +7,7 @@ fprintf('=========================================================\n');
 fprintf('     MPEI - TESTE DO MÓDULO MINHASH      \n');
 fprintf('=========================================================\n\n');
 
+% PRIMEIRO TESTE FEITO PARA O MOVIELENS COMO EXEMPLO ESTÁ COMENTADO
 % Carregar e Preparar os Dados (MovieLens)
 % if ~exist('u.data', 'file')
     % error('Erro: O ficheiro "u.data" não foi encontrado na pasta raiz do projeto.');
@@ -27,7 +28,7 @@ fprintf('=========================================================\n\n');
     % Set{n} = u(ind, 2);             % Guarda os IDs dos filmes num array de células 
 % end
 
-% === CARREGAR DATASET DE NOTÍCIAS ===
+% Carregar Dataset de Notícias
 k_hash = 100; 
 mh = minHash(k_hash); 
 tabela_news = readtable('news.csv', 'VariableNamingRule', 'preserve'); 
@@ -45,7 +46,7 @@ for n = 1:Nu
 end
 
 % Cálculo das Distâncias Reais (Jaccard Exato)
-fprintf('Calculando Distâncias Reais (Jaccard Exato)...\n');
+fprintf('A calcular as Distâncias Reais (Jaccard Exato)...\n');
 tic;
 J_exato = zeros(Nu, Nu);
 for n1 = 1:Nu
@@ -75,7 +76,7 @@ for n1 = 1:Nu
     end
 end
 tempo_minhash = toc;
-fprintf('Tempo gasto com MinHash: %.4f segundos.\n\n', tempo_minhash);
+fprintf('Tempo gasto com o MinHash: %.4f segundos.\n\n', tempo_minhash);
 
 % Avaliação Estatística dos Resultados 
 limiar = 0.4;
@@ -105,12 +106,12 @@ max_erro = max(erros_absolutos);
 
 fprintf('=================== RESULTADOS DO TESTE ===================\n');
 fprintf('Pares similares detetados pelo Jaccard Real:  %d\n', pares_exatos);
-fprintf('Pares similares detetados pelo teu MinHash:   %d\n', pares_minhash);
+fprintf('Pares similares detetados pelo MinHash:   %d\n', pares_minhash);
 fprintf('Erro Absoluto Médio da aproximação:           %.4f\n', erro_medio);
 fprintf('Erro Máximo registado no teste:               %.4f\n', max_erro);
-fprintf('Ganho de Performance com MinHash:             %.1fx mais rápido\n', (tempo_exato / tempo_minhash));
+fprintf('Diferença de Performance com o MinHash:             %.1fx mais rápido\n', (tempo_exato / tempo_minhash));
 fprintf('===========================================================\n');
 
 % Validação automática para garantir que o teste passou
 assert(erro_medio < 0.05, 'O erro médio do estimador probabilístico está muito acima do tolerável.');
-fprintf('\n[MÓDULO MINHASH]: Todos os testes de volume e consistência passaram com distinção!\n');
+fprintf('\n[MÓDULO MINHASH]: Todos os testes de volume e consistência passaram.\n');

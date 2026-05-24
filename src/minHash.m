@@ -1,7 +1,7 @@
 classdef minHash
     properties
         NumHashes % Número de funções de dispersão (k)
-        Prime     % Número primo grande para a operação de módulo (p)
+        Prime     % Número primo para a operação de módulo (p)
         A         % Vetor de coeficientes 'a'
         B         % Vetor de coeficientes 'b'
     end
@@ -70,7 +70,6 @@ classdef minHash
             end
 
             % Vetorização
-            % Aplicamos a fórmula h(x) = (a*x + b) mod p através da expansão implícita do Matlab.
             % obj.A é (k x 1), numericIds é (1 x M). O resultado é uma matriz (k x M).
             allHashes = mod(obj.A * numericIds + obj.B, obj.Prime);
             
