@@ -1,11 +1,12 @@
 classdef naiveBayes
     properties
-        mode          % 'multinomial' ou 'bernoulli'
-        classes       % Cell array com as classes únicas
-        vocabulary    % Vetor com a lista de palavras únicas
-        logPrior      % Probabilidades a priori das classes em log
-        logLikelihood % Probabilidades das palavras dada a classe em log P(W|C)
-        vocabSize     % Tamanho do vocabulário
+        mode              % 'multinomial' ou 'bernoulli'
+        classes           % Cell array com as classes únicas
+        vocabulary        % Vetor com a lista de palavras únicas
+        logPrior          % Probabilidades a priori das classes em log
+        logLikelihood     % Probabilidades de presença das palavras dada a classe em log P(W=1|C)
+        logLikelihoodNeg  % Probabilidades de ausência das palavras dada a classe em log P(W=0|C) [Apenas Bernoulli]
+        vocabSize         % Tamanho do vocabulário
     end
 
     methods
@@ -37,12 +38,20 @@ classdef naiveBayes
                 obj.logPrior(i) = log(count / numel(labels));
             end
 
-            % P(palavra|classe) com Laplace smoothing (add-1) em espaço logarítmico
+            % Inicializar matrizes de verosimilhança
             obj.logLikelihood = zeros(numClasses, obj.vocabSize);
+            if strcmp(obj.mode, 'bernoulli')
+                obj.logLikelihoodNeg = zeros(numClasses, obj.vocabSize);
+            else
+                obj.logLikelihoodNeg = []; % Não aplicável ao Multinomial
+            end
+
             for i = 1:numClasses
-                classDocs = documents(strcmp(labels, obj.classes{i}));
-                counts    = zeros(1, obj.vocabSize);
-                for d = 1:numel(classDocs)
+                classDocs    = documents(strcmp(labels, obj.classes{i}));
+                numClassDocs = numel(classDocs);
+                counts       = zeros(1, obj.vocabSize);
+                
+                for d = 1:numClassDocs
                     words = obj.tokenize(classDocs{d});
 
                     % Se for modo Bernoulli, binariza o documento removendo palavras repetidas
@@ -57,7 +66,18 @@ classdef naiveBayes
                         end
                     end
                 end
-                obj.logLikelihood(i, :) = log((counts + 1) / (sum(counts) + obj.vocabSize));
+                
+                if strcmp(obj.mode, 'multinomial')
+                    % Formulação Multinomial: Fração do total de palavras na classe + VocabSize
+                    obj.logLikelihood(i, :) = log((counts + 1) / (sum(counts) + obj.vocabSize));
+                else
+                    % Formulação Bernoulli Correta:
+                    % P(W=1|C) = (docs_da_classe_com_palavra + 1) / (total_docs_da_classe + 2)
+                    obj.logLikelihood(i, :) = log((counts + 1) / (numClassDocs + 2));
+                    
+                    % P(W=0|C) = 1 - P(W=1|C) = (numClassDocs - counts + 1) / (numClassDocs + 2)
+                    obj.logLikelihoodNeg(i, :) = log((numClassDocs - counts + 1) / (numClassDocs + 2));
+                end
             end
         end
 
@@ -72,12 +92,14 @@ classdef naiveBayes
         end
 
         % Devolve a probabilidade estimada de cada classe para um documento
+        % (Evita sob/sub-fluxo usando propriedades de logaritmos)
         function probs = probability(obj, document)
             if ~ischar(document)
                 document = char(document);
             end
             [~, logScores] = obj.classifyOne(document);
-            % Ajuste para evitar underflow/overflow antes de exponenciar
+            
+            % Ajuste para evitar sob/sub-fluxo antes de aplicar a exponencial
             logScores      = logScores - max(logScores);
             normalized     = exp(logScores) / sum(exp(logScores));
             probs.classes       = obj.classes;
@@ -94,7 +116,6 @@ classdef naiveBayes
             end
             
             if iscell(input)
-                % garantir que cada elemento é char
                 result = cellfun(@char, input, 'UniformOutput', false);
             elseif isstring(input)
                 result = cellstr(input);
@@ -112,18 +133,37 @@ classdef naiveBayes
             end
             words = obj.tokenize(document);
             
-            % Se for modo Bernoulli, remove duplicados do documento de teste
-            if strcmp(obj.mode, 'bernoulli')
+            logScores = obj.logPrior;
+            
+            if strcmp(obj.mode, 'multinomial')
+                % No Multinomial, consideramos apenas as palavras presentes (e suas repetições)
+                for w = 1:numel(words)
+                    idx = find(strcmp(obj.vocabulary, words{w}), 1);
+                    if ~isempty(idx)
+                        logScores = logScores + obj.logLikelihood(:, idx)';
+                    end
+                end
+            else
+                % No Bernoulli, removemos duplicados do documento de teste
                 words = unique(words);
+                
+                % Criamos um vetor lógico mapeando a presença das palavras face ao vocabulário global
+                presentInDoc = false(1, obj.vocabSize);
+                for w = 1:numel(words)
+                    idx = find(strcmp(obj.vocabulary, words{w}), 1);
+                    if ~isempty(idx)
+                        presentInDoc(idx) = true;
+                    end
+                end
+                
+                % Vetorização completa em Matlab (Altamente Eficiente)
+                % Somamos as log-verosimilhanças das presentes e das ausentes
+                scorePresente = sum(obj.logLikelihood(:, presentInDoc), 2)';
+                scoreAusente  = sum(obj.logLikelihoodNeg(:, ~presentInDoc), 2)';
+                
+                logScores = logScores + scorePresente + scoreAusente;
             end
             
-            logScores = obj.logPrior;
-            for w = 1:numel(words)
-                idx = find(strcmp(obj.vocabulary, words{w}), 1);
-                if ~isempty(idx)
-                    logScores = logScores + obj.logLikelihood(:, idx)';
-                end
-            end
             [~, bestIdx] = max(logScores);
             bestClass    = obj.classes{bestIdx};
         end

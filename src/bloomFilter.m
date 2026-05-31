@@ -1,37 +1,29 @@
 classdef bloomFilter
     properties
-        numBits     % Tamanho do vetor de contadores
-        numHashes   % Num Funções hash usadas
+        numBits     % Tamanho do vetor de bits/contadores (m)
+        numHashes   % Número de funções hash simuladas (k)
         type        % 'classic' ou 'counting'
-        bits        % Vetor dos bits (modo classic)
-        counters    % Vetor de Inteiros (modo counting)
-        seeds       % Seeds aleatórias para as K funções hash
-        numInserted % Num de elementos inseridos no filtro
+        bits        % Vetor de bits (modo classic)
+        counters    % Vetor de inteiros (modo counting)
+        numInserted % Número de elementos inseridos com sucesso
     end
 
     methods
         
         % Construtor do Módulo
         function obj = bloomFilter(expectedItems, fpRate, type)
-
             % Se não passar 3 argumentos assume type como classic
             if nargin < 3
                 type = 'classic';
             end
 
-            obj.numBits   = ceil(1.5 * (-expectedItems * log(fpRate) / (log(2)^2)));
+            % Fórmula matemática teórica exata de dimensionamento ótimo
+            obj.numBits   = ceil((-expectedItems * log(fpRate)) / (log(2)^2));
             obj.numHashes = max(1, round((obj.numBits / expectedItems) * log(2)));
             obj.type      = type;
             obj.numInserted = 0;
             
-            % Fixar a seed para garantir que as funções de hash são as
-            % mesmas quando aplicarmos em conjunto
-            rng(42);
-            obj.seeds = randi(2^31 - 1, 1, obj.numHashes);
-            
-            % Se for classic inicializa vetor de zeros binarios de tamanho
-            % numBits e se for counting o vetor de bits fica vazio e
-            % inicializa obj.counters com zeros
+            % Inicialização das estruturas com base no tipo pedido
             if strcmp(type, 'classic')
                 obj.bits     = false(1, obj.numBits);
                 obj.counters = [];
@@ -43,10 +35,13 @@ classdef bloomFilter
         
         % Método de inserção no Bloom Filter
         function obj = insert(obj, element)
-            positions           = obj.hashPositions(element);
+            positions = obj.hashPositions(element);
             if strcmp(obj.type, 'classic')
                 obj.bits(positions) = true;
             else
+                % Mantém-se o loop na inserção do modo counting porque se a 
+                % vetorização gerasse posições duplicadas para o mesmo item,
+                % o Matlab apenas incrementaria uma vez. O loop garante o comportamento correto.
                 for i = 1:numel(positions)
                     obj.counters(positions(i)) = obj.counters(positions(i)) + 1;
                 end
@@ -64,11 +59,17 @@ classdef bloomFilter
             end
         end
 
-        % Método de remoção (apenas counting)
+        % Método de remoção (apenas para o modo counting)
         function obj = remove(obj, element)
             if ~strcmp(obj.type, 'counting')
                 error('remove() só é suportado no Counting Bloom Filter.');
             end
+            
+            % Engenharia Defensiva: Só remove se o elemento passar no teste preliminar
+            if ~obj.lookup(element)
+                return; % Evita decrementos falsos que causariam underflow nos contadores
+            end
+            
             positions = obj.hashPositions(element);
             for i = 1:numel(positions)
                 if obj.counters(positions(i)) > 0
@@ -78,7 +79,8 @@ classdef bloomFilter
             obj.numInserted = max(0, obj.numInserted - 1);
         end
         
-        % Calcula as K posições no array para um dado elemento.
+        % Calcula as K posições usando a técnica de Kirsch-Mitzenmacher Pura e Vetorizada
+        % g_i(x) = h1(x) + i * h2(x) (mod m) + 1
         function positions = hashPositions(obj, element)
             if isnumeric(element)
                 raw = double(num2str(element));
@@ -86,21 +88,21 @@ classdef bloomFilter
                 raw = double(char(element));
             end
 
+            % Função Hash 1: DJB2
             h1 = 5381;
             for b = 1:numel(raw)
                 h1 = mod(h1 * 33 + raw(b), 4294967296);
             end
 
+            % Função Hash 2: SDBM
             h2 = 0;
             for b = 1:numel(raw)
                 h2 = mod(raw(b) + mod(h2 * 65536, 4294967296) + mod(h2 * 64, 4294967296) - h2, 4294967296);
             end
 
-            % Gerar as k posições
-            positions = zeros(1, obj.numHashes);
-            for i = 1:obj.numHashes
-                positions(i) = mod(h1 + i * h2 + obj.seeds(i), obj.numBits) + 1;
-            end
+            % Otimização de Kirsch-Mitzenmacher Completa e Vetorizada (Sem loops e sem Seeds!)
+            i_vec = 1:obj.numHashes;
+            positions = mod(h1 + i_vec .* h2, obj.numBits) + 1;
         end
     end
 end
