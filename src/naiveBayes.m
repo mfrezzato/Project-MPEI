@@ -8,9 +8,7 @@ classdef naiveBayes
         logLikelihoodNeg  % Probabilidades de ausência das palavras dada a classe em log P(W=0|C) [Apenas Bernoulli]
         vocabSize         % Tamanho do vocabulário
     end
-
     methods
-
         % Construtor do Módulo
         function obj = naiveBayes(mode)
             % Se não passar argumento assume o modo como multinomial
@@ -19,25 +17,21 @@ classdef naiveBayes
             end
             obj.mode = mode;
         end
-
         % Método de treino do Naïve Bayes
         function obj = train(obj, documents, labels)
             % Normalizar: garantir que documents e labels são cell arrays de char
             documents = obj.toCellStr(documents);
             labels    = obj.toCellStr(labels);
-
             obj.classes    = unique(labels);
             obj.vocabulary = obj.buildVocabulary(documents);
             obj.vocabSize  = numel(obj.vocabulary);
             numClasses     = numel(obj.classes);
-
             % Probabilidades a priori P(classe) em espaço logarítmico
             obj.logPrior = zeros(1, numClasses);
             for i = 1:numClasses
                 count           = sum(strcmp(labels, obj.classes{i}));
                 obj.logPrior(i) = log(count / numel(labels));
             end
-
             % Inicializar matrizes de verosimilhança
             obj.logLikelihood = zeros(numClasses, obj.vocabSize);
             if strcmp(obj.mode, 'bernoulli')
@@ -45,7 +39,6 @@ classdef naiveBayes
             else
                 obj.logLikelihoodNeg = []; % Não aplicável ao Multinomial
             end
-
             for i = 1:numClasses
                 classDocs    = documents(strcmp(labels, obj.classes{i}));
                 numClassDocs = numel(classDocs);
@@ -53,12 +46,10 @@ classdef naiveBayes
                 
                 for d = 1:numClassDocs
                     words = obj.tokenize(classDocs{d});
-
                     % Se for modo Bernoulli, binariza o documento removendo palavras repetidas
                     if strcmp(obj.mode, 'bernoulli')
                         words = unique(words);
                     end
-
                     for w = 1:numel(words)
                         idx = find(strcmp(obj.vocabulary, words{w}), 1);
                         if ~isempty(idx)
@@ -80,7 +71,6 @@ classdef naiveBayes
                 end
             end
         end
-
         % Método para classificar múltiplos documentos
         function predictions = classify(obj, documents)
             % Normalizar para cell array de char
@@ -90,7 +80,6 @@ classdef naiveBayes
                 predictions{d} = obj.classifyOne(documents{d});
             end
         end
-
         % Devolve a probabilidade estimada de cada classe para um documento
         % (Evita sob/sub-fluxo usando propriedades de logaritmos)
         function probs = probability(obj, document)
@@ -106,7 +95,6 @@ classdef naiveBayes
             probs.probabilities = normalized;
         end
     end
-
     methods (Access = private)
         
         % Converte qualquer tipo de array de strings para cell array de char
@@ -125,7 +113,6 @@ classdef naiveBayes
                 result = cellstr(input);
             end
         end
-
         % Método interno para classificar um único documento com soma de logs
         function [bestClass, logScores] = classifyOne(obj, document)
             if ~ischar(document)
@@ -167,8 +154,8 @@ classdef naiveBayes
             [~, bestIdx] = max(logScores);
             bestClass    = obj.classes{bestIdx};
         end
-
-        % Limpa e divide o texto em palavras
+        
+        % CORREÇÃO AQUI: Limpa, divide o texto e remove Stopwords nativamente
         function words = tokenize(~, text)
             if ~ischar(text)
                 text = char(text);
@@ -177,8 +164,16 @@ classdef naiveBayes
             text  = regexprep(text, '[^a-záàâãéèêíïóôõúüç0-9\s]', ' ');
             words = strsplit(strtrim(text));
             words = words(~cellfun(@isempty, words));
+            
+            % Lista industrial de stopwords (Conectores e ruídos do dataset)
+            stopwords = {'in', 'to', 's', 'ap', 'for', 'the', 'a', 'and', 'of', 'on', ...
+                         'with', 'at', 'new', 'from', 'by', 'after', 'as', 'us', 'up', ...
+                         'over', 'is', 'it', 'an', 'that', 'first', 'two', 'reuters'};
+                     
+            % Filtrar nativamente o array de palavras removendo as stopwords
+            words = words(~ismember(words, stopwords));
         end
-
+        
         % Constrói a lista única e ordenada de palavras do vocabulário
         function vocabulary = buildVocabulary(obj, documents)
             allWords = {};
