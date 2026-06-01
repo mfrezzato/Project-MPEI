@@ -80,7 +80,7 @@ fprintf('Janela Gráfica Figura 2 (Histograma de Topologia) gerada!\n\n');
 
 
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 2: Análise de Eficiência Computacional e Erro Comparativo\n');
+fprintf('Análise de Eficiência Computacional e Erro Comparativo\n');
 fprintf('-----------------------------------------------------------\n');
 
 k_valores = [50, 150]; 
@@ -138,7 +138,7 @@ assert(var_assinaturas > 0, 'Erro: As assinaturas por palavras falharam.');
 
 
 fprintf('\n-----------------------------------------------------------\n');
-fprintf('PARTE 4: Análise Contínua de K e Curva de Erro Estatístico\n');
+fprintf('Análise Contínua de K e Curva de Erro Estatístico\n');
 fprintf('-----------------------------------------------------------\n');
 fprintf('A correr varredura de K para traçar a curva de convergência... (Aguarde)\n');
 
