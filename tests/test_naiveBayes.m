@@ -1,6 +1,5 @@
 % test_naiveBayes.m
-
-clear; clclc;
+clear; clc;
 fprintf('=========================================================\n');
 fprintf('     MPEI - TESTE COMPREENSIVO DO MÓDULO NAIVE BAYES     \n');
 fprintf('=========================================================\n\n');
@@ -17,7 +16,6 @@ tabela_news = readtable('news.csv', opts);
 Nu = min(2000, height(tabela_news));   
 documentos = tabela_news.Title(1:Nu);
 labels = tabela_news.('Class Index')(1:Nu);
-
 if isnumeric(labels)
     labels = cellstr(string(labels)); 
 end
@@ -26,22 +24,18 @@ end
 rng(42); 
 indices = randperm(Nu);
 limite = round(0.70 * Nu); % 70% para Treino e 30% para Teste
-
 docs_treino   = documentos(indices(1:limite));
 labels_treino = labels(indices(1:limite));
 docs_teste    = documentos(indices(limite+1:end));
 labels_teste  = labels(indices(limite+1:end));
-
 N_teste = numel(docs_teste);
 fprintf('Dados preparados: %d documentos de Treino, %d de Teste.\n\n', limite, N_teste);
-
 
 % =========================================================================
 % EVALUAR MODO 1: MULTINOMIAL
 % =========================================================================
 fprintf('>>> Avaliando Modelo NAÏVE BAYES: MULTINOMIAL...\n');
 nb_multi = naiveBayes('multinomial');
-
 tic;
 nb_multi = nb_multi.train(docs_treino, labels_treino);
 tempo_treino_multi = toc;
@@ -52,13 +46,11 @@ tempo_class_multi = toc;
 
 [acc_multi, metricas_multi] = calcularMetricasMultiClasse(labels_teste, previsoes_multi, nb_multi.classes);
 
-
 % =========================================================================
 % EVALUAR MODO 2: BERNOULLI (CORRIGIDO)
 % =========================================================================
 fprintf('>>> Avaliando Modelo NAÏVE BAYES: BERNOULLI...\n');
 nb_bern = naiveBayes('bernoulli');
-
 tic;
 nb_bern = nb_bern.train(docs_treino, labels_treino);
 tempo_treino_bern = toc;
@@ -68,7 +60,6 @@ previsoes_bern = nb_bern.classify(docs_teste);
 tempo_class_bern = toc;
 
 [acc_bern, metricas_bern] = calcularMetricasMultiClasse(labels_teste, previsoes_bern, nb_bern.classes);
-
 
 % =========================================================================
 % RESUMO COMPARATIVO DE RESULTADOS (EXCELENTE PARA O RELATÓRIO)
@@ -99,15 +90,19 @@ assert(acc_multi >= 0 && acc_multi <= 1, 'Erro nas métricas do Multinomial.');
 assert(acc_bern >= 0 && acc_bern <= 1, 'Erro nas métricas do Bernoulli.');
 fprintf('\n[OK]: Todos os testes detalhados e cruzados passaram com sucesso!\n');
 
-
 % =========================================================================
 % FUNÇÃO AUXILIAR: CÁLCULO DE MÉTRICAS MULTI-CLASSE
 % =========================================================================
 function [exatidatoglobal, listaMetricas] = calcularMetricasMultiClasse(reais, previstas, listaClasses)
+    % CORREÇÃO CRÍTICA: Forçar linearização para vetores coluna (N x 1)
+    % Isto elimina incompatibilidades de tamanho no strcmp e loops seguintes
+    reais = reais(:);
+    previstas = previstas(:);
+
     numClasses = numel(listaClasses);
     N = numel(reais);
     
-    % Acertos globais
+    % Acertos globais - agora a comparação corre sem erros
     acertos = sum(strcmp(reais, previstas));
     exatidatoglobal = acertos / N;
     

@@ -7,7 +7,6 @@ classdef bloomFilter
         counters    % Vetor de inteiros (modo counting)
         numInserted % Número de elementos inseridos com sucesso
     end
-
     methods
         
         % Construtor do Módulo
@@ -16,9 +15,16 @@ classdef bloomFilter
             if nargin < 3
                 type = 'classic';
             end
-
             % Fórmula matemática teórica exata de dimensionamento ótimo
-            obj.numBits   = ceil((-expectedItems * log(fpRate)) / (log(2)^2));
+            m = ceil((-expectedItems * log(fpRate)) / (log(2)^2));
+            
+            % CORREÇÃO CRÍTICA: Garante que o tamanho do filtro é um número primo.
+            % Isto evita periodicidade e sub-aproveitamento do array em Kirsch-Mitzenmacher.
+            while ~isprime(m)
+                m = m + 1;
+            end
+            
+            obj.numBits   = m;
             obj.numHashes = max(1, round((obj.numBits / expectedItems) * log(2)));
             obj.type      = type;
             obj.numInserted = 0;
@@ -48,7 +54,7 @@ classdef bloomFilter
             end
             obj.numInserted = obj.numInserted + 1;
         end
-
+        
         % Caso provavelmente presente retorna true, caso definitivamente não esteja presente retorna false
         function result = lookup(obj, element)
             positions = obj.hashPositions(element);
@@ -58,7 +64,7 @@ classdef bloomFilter
                 result = all(obj.counters(positions) > 0);
             end
         end
-
+        
         % Método de remoção (apenas para o modo counting)
         function obj = remove(obj, element)
             if ~strcmp(obj.type, 'counting')
@@ -87,19 +93,16 @@ classdef bloomFilter
             else
                 raw = double(char(element));
             end
-
             % Função Hash 1: DJB2
             h1 = 5381;
             for b = 1:numel(raw)
                 h1 = mod(h1 * 33 + raw(b), 4294967296);
             end
-
             % Função Hash 2: SDBM
             h2 = 0;
             for b = 1:numel(raw)
                 h2 = mod(raw(b) + mod(h2 * 65536, 4294967296) + mod(h2 * 64, 4294967296) - h2, 4294967296);
             end
-
             % Otimização de Kirsch-Mitzenmacher Completa e Vetorizada (Sem loops e sem Seeds!)
             i_vec = 1:obj.numHashes;
             positions = mod(h1 + i_vec .* h2, obj.numBits) + 1;
