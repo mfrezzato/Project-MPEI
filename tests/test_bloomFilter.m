@@ -1,12 +1,15 @@
 % test_bloomFilter.m
+%NMEC: 125793
+%NMEC: 125487
+
 clear; clc;
 fprintf('=========================================================\n');
-fprintf('     MPEI - TESTE COMPREENSIVO DO MÓDULO BLOOM FILTER    \n');
+fprintf('     MPEI - TESTE MÓDULO BLOOM FILTER    \n');
 fprintf('=========================================================\n\n');
 
 addpath(genpath(pwd));
 
-% 1. CARREGAMENTO E DIVISÃO DOS DADOS REAIS
+% carregar e dividir os dados
 fprintf('A carregar o dataset "news.csv"... \n');
 tabela_news = readtable('news.csv', 'VariableNamingRule', 'preserve'); 
 Nu = min(3000, height(tabela_news));   
@@ -17,11 +20,9 @@ U1 = documentos(1:N_inserir);
 U2 = documentos(N_inserir+1:2*N_inserir);
 fprintf('Dados preparados: %d itens para inserção e %d de teste.\n\n', N_inserir, N_inserir);
 
-% =========================================================================
-% PARTE 1: VALIDAÇÃO DO BLOOM FILTER CLÁSSICO E ANÁLISE TEÓRICA
-% =========================================================================
+% validação do bloom filter classic
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 1: Teste do Filtro Clássico sob Diferentes Limites Teóricos\n');
+fprintf('Teste do Filtro Clássico sob Diferentes Limites Teóricos\n');
 fprintf('-----------------------------------------------------------\n');
 fp_teoricos = [0.10, 0.01, 0.001];
 fprintf('%-12s | %-12s | %-10s | %-12s | %-12s\n', 'FP Teórico', 'Num Bits(m)', 'Hashes(k)', 'Falsos Neg.', 'FP Real');
@@ -52,13 +53,11 @@ for f = 1:numel(fp_teoricos)
     assert(falsos_negativos == 0, 'Erro Crítico: O Bloom Filter gerou falsos negativos!');
     assert(taxa_fp_real <= fp_alvo + 0.03, 'Erro: A taxa de falsos positivos excedeu a tolerância.');
 end
-fprintf('[OK]: Filtro Clássico validado com sucesso.\n\n');
+fprintf('Filtro Clássico validado com sucesso.\n\n');
 
-% =========================================================================
-% PARTE 2: VALIDAÇÃO DO COUNTING BLOOM FILTER E REMOÇÃO
-% =========================================================================
+% validação do bloom filter counting e remoção
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 2: Teste de Integridade do Counting Bloom Filter\n');
+fprintf('Teste de Integridade do Counting Bloom Filter\n');
 fprintf('-----------------------------------------------------------\n');
 bf_counting = bloomFilter(N_inserir, 0.01, 'counting');
 for i = 1:N_inserir, bf_counting = bf_counting.insert(U1{i}); end
@@ -80,13 +79,11 @@ taxa_sucesso_remocao = removidos_com_sucesso / N_remocao;
 fprintf('Presença pré-remoção: %s | Itens testados: %d | Removidos: %d (Taxa: %.2f%%)\n', ...
     char(string(todos_existiam)), N_remocao, removidos_com_sucesso, taxa_sucesso_remocao * 100);
 assert(todos_existiam && taxa_sucesso_remocao >= 0.95, 'Erro no Counting Bloom Filter.');
-fprintf('[OK]: Módulo Counting validado com sucesso.\n\n');
+fprintf('Módulo Counting validado com sucesso.\n\n');
 
-% =========================================================================
-% PARTE 3: CRIATIVIDADE EXTRA - ANÁLISE EMPÍRICA DO K ÓTIMO (PL6 EX 4)
-% =========================================================================
+% analise empirica do K otimo
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 3: Teste de Sensibilidade - Determinação do K Ótimo\n');
+fprintf('Teste de Sensibilidade - Determinação do K Ótimo\n');
 fprintf('-----------------------------------------------------------\n');
 fprintf('A simular variação de K para um tamanho fixo de filtro... (Aguarde)\n');
 
@@ -97,11 +94,11 @@ fp_registados = zeros(1, numel(k_testados));
 for idx_k = 1:numel(k_testados)
     k_atual = k_testados(idx_k);
     
-    % Instanciação manual alterando a propriedade diretamente para teste de stress
+    % instanciação manual alterando a propriedade diretamente para teste de stress
     bf_custom = bloomFilter(N_inserir, 0.05, 'classic');
     bf_custom.numBits = m_fixo;
     bf_custom.numHashes = k_atual;
-    bf_custom.bits = false(1, m_fixo); % Reinicializa o vetor com m_fixo
+    bf_custom.bits = false(1, m_fixo); % reinicializa o vetor com m_fixo
     
     for i = 1:N_inserir, bf_custom = bf_custom.insert(U1{i}); end
     
@@ -112,7 +109,7 @@ for idx_k = 1:numel(k_testados)
     fp_registados(idx_k) = falsos_pos / N_inserir;
 end
 
-% Determinar o k ótimo experimental
+% determinar o k ótimo experimental
 [min_fp, idx_otimo] = min(fp_registados);
 k_otimo_teorico = round((m_fixo / N_inserir) * log(2));
 
@@ -120,13 +117,13 @@ fprintf('Resultados de Sensibilidade:\n');
 fprintf('-> K Ótimo Experimental: %d (Menor taxa de FP: %.4f)\n', k_testados(idx_otimo), min_fp);
 fprintf('-> K Ótimo Teórico:      %d\n', k_otimo_teorico);
 
-% Gerar o Gráfico para o Relatório Técnico
+% gerar o Gráfico para o Relatório Técnico
 figure(1);
 plot(k_testados, fp_registados * 100, '-o', 'LineWidth', 2, 'MarkerFaceColor', 'r');
 grid on;
 xlabel('Número de Funções Hash (k)');
 ylabel('Taxa de Falsos Positivos (%)');
 title('Análise Empírica do K Ótimo (Filtro de Bloom)');
-fprintf('[GRÁFICO]: Janela Gráfica Figura 1 gerada com sucesso!\n');
+fprintf('Janela Gráfica Figura 1 gerada com sucesso!\n');
 fprintf('-----------------------------------------------------------\n');
-fprintf('[OK]: Todos os testes avançados do Bloom Filter passaram!\n');
+fprintf('Todos os testes avançados do Bloom Filter passaram!\n');

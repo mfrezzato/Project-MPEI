@@ -1,3 +1,6 @@
+%NMEC: 125793
+%NMEC: 125487
+
 classdef naiveBayes
     properties
         mode              % 'multinomial' ou 'bernoulli'
@@ -62,7 +65,7 @@ classdef naiveBayes
                     % Formulação Multinomial: Fração do total de palavras na classe + VocabSize
                     obj.logLikelihood(i, :) = log((counts + 1) / (sum(counts) + obj.vocabSize));
                 else
-                    % Formulação Bernoulli Correta:
+                    % Formulação Bernoulli:
                     % P(W=1|C) = (docs_da_classe_com_palavra + 1) / (total_docs_da_classe + 2)
                     obj.logLikelihood(i, :) = log((counts + 1) / (numClassDocs + 2));
                     
@@ -81,14 +84,12 @@ classdef naiveBayes
             end
         end
         % Devolve a probabilidade estimada de cada classe para um documento
-        % (Evita sob/sub-fluxo usando propriedades de logaritmos)
         function probs = probability(obj, document)
             if ~ischar(document)
                 document = char(document);
             end
             [~, logScores] = obj.classifyOne(document);
             
-            % Ajuste para evitar sob/sub-fluxo antes de aplicar a exponencial
             logScores      = logScores - max(logScores);
             normalized     = exp(logScores) / sum(exp(logScores));
             probs.classes       = obj.classes;
@@ -123,7 +124,7 @@ classdef naiveBayes
             logScores = obj.logPrior;
             
             if strcmp(obj.mode, 'multinomial')
-                % No Multinomial, consideramos apenas as palavras presentes (e suas repetições)
+                % No Multinomial só consideramos apenas as palavras presentes
                 for w = 1:numel(words)
                     idx = find(strcmp(obj.vocabulary, words{w}), 1);
                     if ~isempty(idx)
@@ -131,10 +132,9 @@ classdef naiveBayes
                     end
                 end
             else
-                % No Bernoulli, removemos duplicados do documento de teste
+                % No Bernoulli removemos duplicados do documento de teste
                 words = unique(words);
                 
-                % Criamos um vetor lógico mapeando a presença das palavras face ao vocabulário global
                 presentInDoc = false(1, obj.vocabSize);
                 for w = 1:numel(words)
                     idx = find(strcmp(obj.vocabulary, words{w}), 1);
@@ -142,9 +142,7 @@ classdef naiveBayes
                         presentInDoc(idx) = true;
                     end
                 end
-                
-                % Vetorização completa em Matlab (Altamente Eficiente)
-                % Somamos as log-verosimilhanças das presentes e das ausentes
+               
                 scorePresente = sum(obj.logLikelihood(:, presentInDoc), 2)';
                 scoreAusente  = sum(obj.logLikelihoodNeg(:, ~presentInDoc), 2)';
                 
@@ -155,7 +153,6 @@ classdef naiveBayes
             bestClass    = obj.classes{bestIdx};
         end
         
-        % CORREÇÃO AQUI: Limpa, divide o texto e remove Stopwords nativamente
         function words = tokenize(~, text)
             if ~ischar(text)
                 text = char(text);

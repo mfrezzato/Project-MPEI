@@ -1,4 +1,7 @@
 % demo_conjunta.m
+%NMEC: 125793
+%NMEC: 125487
+
 clear; clc; close all;
 fprintf('===================================================================\n');
 fprintf('     MPEI - DEMONSTRAÇÃO CONJUNTA: FEED DE NOTÍCIAS INTELIGENTE    \n');
@@ -7,9 +10,7 @@ fprintf('===================================================================\n\n
 % Adicionar pastas ao path para garantir acesso aos ficheiros de classes (.m)
 addpath(genpath(pwd));
 
-% =========================================================================
-% STEP 1: CARREGAMENTO DOS DADOS E TREINO DO SISTEMA
-% =========================================================================
+% Carregar os dados para o sistema
 fprintf('>>> [Fase de Inicialização] A carregar a base de dados de notícias...\n');
 opts = detectImportOptions('news.csv', 'VariableNamingRule', 'preserve');
 tabela_news = readtable('news.csv', opts);
@@ -17,10 +18,11 @@ tabela_news = readtable('news.csv', opts);
 % Normalização defensiva do tipo de dados para garantir compatibilidade
 tabela_news.Title = cellstr(tabela_news.Title);
 
-% Mapeamento dos índices de classe textuais para abranger as 4 categorias nativas do AG News
+% Mapeamento dos índices de classe textuais para abranger as 4 categorias
+% do news
 classMap = containers.Map({'1','2','3','4'}, {'Mundo', 'Desporto', 'Economia', 'Ciência/Tecnologia'});
 
-% Usar os primeiros 1500 registos para alimentar o conhecimento do sistema
+% Usar os primeiros 1500 registos para treinar o sistema
 N_base = min(1500, height(tabela_news));
 titulos_base = tabela_news.Title(1:N_base);
 classes_base = tabela_news.('Class Index')(1:N_base);
@@ -36,7 +38,7 @@ mh_sistema = minHash(k_hashes);
 
 bf_historico = bloomFilter(500, 0.01, 'classic');
 
-% O utilizador virtual já leu as primeiras 50 notícias no passado (Filtro de Histórico)
+% Ler as 50 primeiras notícias
 N_lidos_simulacao = 50;
 fprintf('-> Simulação: O utilizador acabou de ler as primeiras %d notícias da base de dados.\n', N_lidos_simulacao);
 for idx_lido = 1:N_lidos_simulacao
@@ -47,17 +49,14 @@ end
 Signatures_publicadas = [];
 Titulos_publicados = {};
 
-% Repositórios categorizados para o Painel Consolidado do utilizador
+% Guarda as publicações em categorias para mostrar no output final
 feed_categorias = struct('Mundo', {{}}, 'Desporto', {{}}, 'Economia', {{}}, 'Ciencia', {{}});
 
 % Telemetria e Dashboard de Análise Estatística
 stats = struct('total', 0, 'bloom_bloq', 0, 'minhash_bloq', 0, 'publicados', 0);
 fprintf('[OK]: Sistema inicializado com sucesso!\n\n');
 
-
-% =========================================================================
-% EXTRAÇÃO DINÂMICA DE EXEMPLOS DISTANTES DO DATASET (SEM COISAS HARDCODED)
-% =========================================================================
+% Procurar uma nova notícia no data set
 fprintf('>>> A localizar notícias inéditas e distantes no dataset para os testes...\n');
 
 % Procurar o primeiro bloco de notícias inéditas após a linha 1500
@@ -72,7 +71,7 @@ idx_desporto2 = idx_desporto + 1; while idx_desporto2 <= height(tabela_news) && 
 idx_economia2 = idx_economia + 1; while idx_economia2 <= height(tabela_news) && ~strcmp(string(tabela_news.('Class Index')(idx_economia2)), '3'), idx_economia2 = idx_economia2 + 1; end
 idx_tech2     = idx_tech + 1;     while idx_tech2     <= height(tabela_news) && ~strcmp(string(tabela_news.('Class Index')(idx_tech2)), '4'),    idx_tech2 = idx_tech2 + 1; end
 
-% MONTAGEM DO VETOR INDUSTRIAL DE 15 CENÁRIOS COM MANIPULAÇÃO PROGRAMÁTICA
+% 15 demosntrações de cenarios variados do sistema
 noticias_teste = { ...
     tabela_news.Title{15}, ...                                                   % C1: JÁ LIDA HISTÓRICO (Bloqueio exato pelo Bloom)
     tabela_news.Title{42}, ...                                                   % C2: JÁ LIDA HISTÓRICO (Bloqueio exato pelo Bloom)
@@ -85,7 +84,7 @@ noticias_teste = { ...
     upper(tabela_news.Title{120}), ...                                           % C9: EDGE CASE: MAIÚSCULAS DO C7 (Apanhada pelo MinHash -> Deve Rejeitar)
     tabela_news.Title{250}, ...                                                  % C10: EXISTENTE NÃO LIDA (Primeira vez na sessão -> Deve Publicar)
     strjoin(flip(strsplit(tabela_news.Title{250})), ' '), ...                    % C11: EDGE CASE: PERMUTAÇÃO DE PALAVRAS DO C10 (MinHash apanha -> Deve Rejeitar)
-    strtok(tabela_news.Title{400}), ...                                          % C12 CORRIGIDA: Extrai a primeira palavra de forma segura sem quebras de indexação
+    strtok(tabela_news.Title{400}), ...                                          % C12: Extrai a primeira palavra de forma segura sem quebras de indexação
     tabela_news.Title{idx_mundo2}, ...                                           % C13: DATASET REAL - MUNDO 2 (Deve Publicar)
     tabela_news.Title{idx_desporto2}, ...                                        % C14: DATASET REAL - DESPORTO 2 (Deve Publicar)
     tabela_news.Title{idx_economia2} ...                                         % C15: DATASET REAL - ECONOMIA 2 (Deve Publicar)
@@ -96,9 +95,7 @@ limiar_similaridade = 0.45;
 historico_telemetria = zeros(numel(noticias_teste), 3);
 
 
-% =========================================================================
-% STEP 2: EXECUÇÃO DO PIPELINE DO FEED EM TEMPO REAL
-% =========================================================================
+% pipeline do feed
 fprintf('\n===================================================================\n');
 fprintf('               PROCESSAMENTO DO FLUXO DE NOTÍCIAS                  \n');
 fprintf('===================================================================\n');
@@ -110,19 +107,19 @@ for t = 1:numel(noticias_teste)
     fprintf('\n[Cenário %d] Título Recebido: "%s"\n', t, noticia_atual);
     fprintf('-------------------------------------------------------------------\n');
     
-    % --- FILTRO 1: BLOOM FILTER (Controlo de Duplicados Exatos) ---
+    % bloom filter (para filtrar duplicados ou lidas)
     if bf_historico.lookup(noticia_atual)
         fprintf('=> [BLOOM FILTER]: [BLOQUEADA] Esta notícia exata já foi lida pelo utilizador!\n');
         fprintf('>> [AÇÃO DO FEED]: [DESCARTADA] Artigo ignorado para evitar repetição visual.\n');
         stats.bloom_bloq = stats.bloom_bloq + 1;
-        % Guardar histórico corrente de streaming e saltar
+        % guardar histórico corrente de streaming e saltar
         historico_telemetria(t, :) = [stats.bloom_bloq, stats.minhash_bloq, stats.publicados];
         continue; 
     else
         fprintf('=> [BLOOM FILTER]: [PASSOU] Notícia inédita no histórico do utilizador.\n');
     end
     
-    % --- FILTRO 2: NAÏVE BAYES (Classificação Temática) ---
+    % naive bayes (classificar topico na categoria)
     classe_prevista_id = nb_sistema.classify({noticia_atual});
     nome_classe = classMap(classe_prevista_id{1});
     
@@ -140,7 +137,8 @@ for t = 1:numel(noticias_teste)
             nome_classe, max_prob * 100);
     end
     
-    % --- FILTRO 3: MINHASH (Deteção de Similaridade Semântica no Feed Exibido) ---
+    % minhash (verificar similaridade entre noticias e bloquear quanto
+    % similaridade é alta)
     shingles_atual = mh_sistema.createShingles(noticia_atual, 3, 'chars');
     signature_atual = mh_sistema.getSignature(shingles_atual);
     
@@ -148,7 +146,7 @@ for t = 1:numel(noticias_teste)
         melhor_similaridade = 0;
         dist_melhor = 1;
     else
-        % Comparação matricial vetorizada em bloco contra a sessão ativa
+        % comparação matricial vetorizada em bloco
         all_sims = sum(signature_atual == Signatures_publicadas, 1) / k_hashes;
         [melhor_similaridade, index_melhor_similar] = max(all_sims);
         dist_melhor = 1 - melhor_similaridade;
@@ -166,15 +164,14 @@ for t = 1:numel(noticias_teste)
         fprintf('=> [MINHASH]: [CONTEÚDO ÚNICO] O tema desta notícia ainda não existe no feed atual.\n');
     end
     
-    % --- SUCESSO DO PIPELINE: O artigo é aceite pelo ecossistema ---
+    % sucesso no pipeline, notícia foi aceita
     Signatures_publicadas = [Signatures_publicadas, signature_atual];
     Titulos_publicados{end+1} = noticia_atual;
     stats.publicados = stats.publicados + 1;
     
-    % Atualiza o histórico do Bloom Filter para sessões futuras
+    % atualizar o historico do bloom filter para verificações futuras
     bf_historico = bf_historico.insert(noticia_atual);
     
-    % Roteamento dinâmico para a pasta correspondente
     prefixo_exibicao = '';
     if flag_aviso_ruido, prefixo_exibicao = '[AVISO DE CONTEÚDO] '; end
     
@@ -186,13 +183,11 @@ for t = 1:numel(noticias_teste)
     end
     fprintf('>> [AÇÃO DO FEED]: [SUCESSO] Artigo encaminhado e publicado na secção de %s!\n', nome_classe);
     
-    % Guardar histórico corrente de streaming
+    % guardar historico
     historico_telemetria(t, :) = [stats.bloom_bloq, stats.minhash_bloq, stats.publicados];
 end
 
-% =========================================================================
-% STEP 3: INTERFACE DE RESULTADOS CONSOLIDADA
-% =========================================================================
+% interface dos resultados
 fprintf('\n===================================================================\n');
 fprintf('             PAINEL PERSONALIZADO DE NOTÍCIAS DO UTILIZADOR        \n');
 fprintf('===================================================================\n');
@@ -215,7 +210,7 @@ for cat_idx = 1:numel(categorias_nomes)
     end
 end
 
-% Imprimir a Telemetria e Auditoria Estatística da Sessão
+% mostrar telemetria desta sessão
 fprintf('\n===================================================================\n');
 fprintf('                  TELEMETRIA DO STREAMING DE DADOS                 \n');
 fprintf('===================================================================\n');
@@ -225,21 +220,19 @@ fprintf('Recusados por Duplicação (MinHash):  %d (Taxa: %.1f%%)\n', stats.minh
 fprintf('Publicados com Sucesso no Feed:      %d (Taxa: %.1f%%)\n', stats.publicados, (stats.publicados/stats.total)*100);
 fprintf('===================================================================\n');
 
-% =========================================================================
-% STEP 4: REPRESENTAÇÃO GRÁFICA AVANÇADA (PIE3 + STACKED BAR TELEMETRY)
-% =========================================================================
+% graficos
 volumes_finais = [numel(feed_categorias.Mundo), numel(feed_categorias.Desporto), ...
                   numel(feed_categorias.Economia), numel(feed_categorias.Ciencia)];
 labels_grafico = {'Mundo', 'Desporto', 'Economia', 'Sci/Tech'};
 
 if sum(volumes_finais) > 0
-    % FIGURA 1: Composição Temática (Pie Chart)
+    % pie chart
     figure(1);
     pie3(volumes_finais, volumes_finais > 0, labels_grafico);
     title('Composição Temática das Notícias Publicadas no Feed Ativo');
     fprintf('\n[GRÁFICO]: Janela Gráfica Figura 1 (Pie3) gerada com sucesso!\n');
     
-    % FIGURA 2: Telemetria Streaming Passo a Passo (Stacked Bar)
+    % bar grafic
     figure(2);
     bar(historico_telemetria, 'stacked', 'EdgeColor', 'none');
     grid on;
@@ -252,5 +245,5 @@ if sum(volumes_finais) > 0
 end
 
 fprintf('\n===================================================================\n');
-fprintf('     [FIM DA DEMONSTRAÇÃO]: Pipeline unificado operado com distinção! \n');
+fprintf('     [FIM DA DEMONSTRAÇÃO]\n');
 fprintf('===================================================================\n');

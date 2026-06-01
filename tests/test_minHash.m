@@ -1,16 +1,16 @@
 % test_minHash.m
+%NMEC: 125793
+%NMEC: 125487
 
 clear; clc;
 fprintf('=========================================================\n');
-fprintf('     MPEI - TESTE AVANÇADO E RIGOROSO DO MÓDULO MINHASH  \n');
+fprintf('     MPEI - TESTE DO MÓDULO MINHASH  \n');
 fprintf('=========================================================\n\n');
 
 % Adicionar as pastas ao path para garantir acesso ao src/minHash.m
 addpath(genpath(pwd));
 
-% =========================================================================
-% FASE DE CARREGAMENTO ÚNICO DOS DADOS DE TRABALHO
-% =========================================================================
+% carregar dados
 path_news = fullfile('data', 'news.csv');
 if ~exist(path_news, 'file') && exist('news.csv', 'file')
     path_news = 'news.csv';
@@ -19,32 +19,28 @@ end
 fprintf('A carregar o dataset de notícias "%s"...\n', path_news);
 tabela_news = readtable(path_news, 'VariableNamingRule', 'preserve'); 
 
-% Definir volume de dados para o teste cruzado global
+% definir volume de dados
 Nu_news = min(800, height(tabela_news)); 
 fprintf('Dataset carregado com sucesso. Selecionados %d títulos para os testes.\n\n', Nu_news);
 
-
-% =========================================================================
-% PARTE 1: REFORMULADA - VALIDAÇÃO TEXTUAL DE CONFIANÇA (news.csv)
-% =========================================================================
+% validação textual
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 1: Teste de Volume e Validação Textual Base\n');
+fprintf('Teste de Volume e Validação Textual Base\n');
 fprintf('-----------------------------------------------------------\n');
 fprintf('A processar e a criar Tri-Shingles de caracteres para as notícias...\n');
 
-% Instanciar um objeto provisório para aceder ao gerador de shingles
 mh_loader = minHash(10); 
 Set_news_chars = cell(Nu_news, 1); 
 Set_news_words = cell(Nu_news, 1); 
 
 for n = 1:Nu_news
     texto = tabela_news.Title{n};
-    % Criar os dois tipos de shingles suportados pelo módulo
+    % criar os dois tipos de shingles suportados pelo módulo
     Set_news_chars{n} = mh_loader.createShingles(char(texto), 3, 'chars'); 
     Set_news_words{n} = mh_loader.createShingles(char(texto), 2, 'words'); 
 end
 
-% 1A. Cálculo das Distâncias Reais Exatas (Jaccard Teórico)
+% calcular jaccard teorico
 fprintf('A calcular a matriz de Distâncias Reais Exatas por definição...\n');
 tic;
 D_exato_news = zeros(Nu_news, Nu_news);
@@ -57,7 +53,7 @@ for n1 = 1:Nu_news
 end
 tempo_exato = toc;
 
-% 1B. Estimação por MinHash com K de Referência (K = 100)
+% aproximação minHash k = 100
 fprintf('A calcular aproximação por MinHash (K = 100)...\n');
 mh_base = minHash(100);
 Signatures_base = zeros(100, Nu_news);
@@ -66,33 +62,29 @@ for n = 1:Nu_news
 end
 D_minhash_base = mh_base.distanceJaccard(mh_base.computeSimilarityMatrix(Signatures_base));
 
-% Isolar apenas os elementos acima da diagonal para evitar autorreferência (distância zero)
 mascara_triangulo = triu(true(Nu_news, Nu_news), 1);
 erros_base = abs(D_exato_news(mascara_triangulo) - D_minhash_base(mascara_triangulo));
 
-fprintf('[OK]: Matrizes textuais calculadas.\n');
+fprintf('Matrizes textuais calculadas.\n');
 fprintf('   -> Tempo do Cálculo Exato:  %.4f segundos\n', tempo_exato);
 fprintf('   -> Erro Absoluto Médio (K=100): %.4f\n\n', mean(erros_base));
 
-% CROWNING ACHIEVEMENT: Novo Gráfico de Distribuição de Densidade de Dados
+% grafico de distribuição de densidade dos dados
 figure(2);
 histogram(D_exato_news(mascara_triangulo), 30, 'FaceColor', '#D95319', 'EdgeColor', 'w');
 grid on;
 xlabel('Distância de Jaccard Real');
 ylabel('Frequência de Pares de Notícias');
 title('Topologia Textual: Distribuição de Distâncias no Dataset');
-fprintf('[GRÁFICO]: Janela Gráfica Figura 2 (Histograma de Topologia) gerada!\n\n');
+fprintf('Janela Gráfica Figura 2 (Histograma de Topologia) gerada!\n\n');
 
 
-% =========================================================================
-% PARTE 2: SIMULAÇÃO PARAMÉTRICA DE SENSIBILIDADE DE K
-% =========================================================================
 fprintf('-----------------------------------------------------------\n');
 fprintf('PARTE 2: Análise de Eficiência Computacional e Erro Comparativo\n');
 fprintf('-----------------------------------------------------------\n');
 
 k_valores = [50, 150]; 
-limiar_similaridade = 0.4; % Pares com distância < 0.4 são considerados "parentes"
+limiar_similaridade = 0.4; % pares com distância < 0.4 são considerados "parentes"
 
 pares_reais_indices = find(D_exato_news > 0 & D_exato_news < limiar_similaridade);
 num_pares_exatos = numel(pares_reais_indices);
@@ -127,12 +119,8 @@ for k = k_valores
     assert(erro_medio < 0.07, 'Erro: A aproximação probabilística divergiu do limite tolerável.');
 end
 
-
-% =========================================================================
-% PARTE 3: DEMONSTRAÇÃO DO MÓDULO SHINGLES POR PALAVRAS
-% =========================================================================
 fprintf('\n-----------------------------------------------------------\n');
-fprintf('PARTE 3: Demonstração e Comparação de Shingles por Palavras\n');
+fprintf('Demonstração e Comparação de Shingles por Palavras\n');
 fprintf('-----------------------------------------------------------\n');
 
 mh_words = minHash(100);
@@ -149,9 +137,6 @@ fprintf('Variância das distâncias estimadas por palavras: %.4f\n', var_assinat
 assert(var_assinaturas > 0, 'Erro: As assinaturas por palavras falharam.');
 
 
-% =========================================================================
-% PARTE 4: VARREDURA CONTÍNUA E GRÁFICO DE CONVERGÊNCIA DO ERRO
-% =========================================================================
 fprintf('\n-----------------------------------------------------------\n');
 fprintf('PARTE 4: Análise Contínua de K e Curva de Erro Estatístico\n');
 fprintf('-----------------------------------------------------------\n');
@@ -180,14 +165,10 @@ grid on;
 xlabel('Número de Funções de Hash (k)');
 ylabel('Erro Absoluto Médio de Jaccard');
 title('Curva de Convergência Estatística do MinHash');
-fprintf('[GRÁFICO]: Janela Gráfica Figura 1 (Curva de Erro) gerada!\n\n');
+fprintf('Janela Gráfica Figura 1 (Curva de Erro) gerada!\n\n');
 
-
-% =========================================================================
-% PARTE 5: GRÁFICO AVANÇADO DO IMPACTO DO TAMANHO DO SHINGLE (PL7 7.2)
-% =========================================================================
 fprintf('-----------------------------------------------------------\n');
-fprintf('PARTE 5: Análise de Impacto do Comprimento do Shingle (PL7 Ex 7.2)\n');
+fprintf('Análise de Impacto do Comprimento do Shingle (PL7 Ex 7.2)\n');
 fprintf('-----------------------------------------------------------\n');
 
 shingle_tamanhos = [2, 3, 4, 5];
@@ -196,7 +177,7 @@ dist_medias_shingle = zeros(1, numel(shingle_tamanhos));
 fprintf('%-15s | %-25s | %-20s\n', 'Tamanho Shingle', 'Total de Shingles Únicos', 'Distância Média Jaccard');
 fprintf('-----------------------------------------------------------\n');
 
-% Subconjunto de 200 itens para cálculo instantâneo da sensibilidade do shingle
+% iubconjunto de 200 itens para cálculo instantâneo da sensibilidade do shingle
 Nu_sub = 200; 
 
 for s = 1:numel(shingle_tamanhos)
@@ -227,7 +208,7 @@ for s = 1:numel(shingle_tamanhos)
     fprintf('%-15d | %-25d | %-20.4f\n', size_atual, total_vocab_shingles, dist_medias_shingle(s));
 end
 
-% CROWNING ACHIEVEMENT II: Gráfico do Impacto do Shingle
+% grafico impacto shingles
 figure(3);
 plot(shingle_tamanhos, dist_medias_shingle, '-^', 'LineWidth', 2, 'MarkerFaceColor', 'g', 'Color', [0 0.5 0]);
 grid on;
@@ -235,8 +216,8 @@ set(gca, 'XTick', shingle_tamanhos);
 xlabel('Comprimento do Shingle de Caracteres');
 ylabel('Distância Média de Jaccard Real');
 title('Impacto do Tamanho do Shingle na Densidade de Similaridade');
-fprintf('[GRÁFICO]: Janela Gráfica Figura 3 (Análise de Shingle) gerada!\n');
+fprintf('Janela Gráfica Figura 3 (Análise de Shingle) gerada!\n');
 
 fprintf('-----------------------------------------------------------\n');
-fprintf('[OK]: Todos os testes de volume, consistência e rigor do MinHash passaram!\n');
+fprintf('Todos os testes de volume, consistência e rigor do MinHash passaram!\n');
 fprintf('===========================================================\n');

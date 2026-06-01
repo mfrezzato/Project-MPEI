@@ -1,3 +1,6 @@
+%NMEC: 125793
+%NMEC: 125487
+
 classdef minHash
     properties
         NumHashes % Número de funções de dispersão (k)
@@ -15,8 +18,6 @@ classdef minHash
             % Número primo de Mersenne (2^31 - 1) para evitar colisões no mod
             obj.Prime = 2147483647; 
 
-            % USO CORRETO: Cria um fluxo de aleatoriedade isolado e local
-            % Garante reprodutibilidade sem destruir o rng global do Matlab!
             stream = RandStream('mt19937ar', 'Seed', 98765);
 
             % Gerar coeficientes aleatórios únicos para as k funções de hash
@@ -24,7 +25,7 @@ classdef minHash
             obj.B = randi(stream, [0, obj.Prime - 1], numHashes, 1);
         end
 
-        % Gerador de Shingles Avançado (Suporta caracteres ou palavras)
+        % Gerador de Shingles Avançado (caracteres ou palavras)
         function shingles = createShingles(~, text, kSize, mode)
             if nargin < 4
                 mode = 'chars'; % Por omissão, faz shingling por caracteres
@@ -57,26 +58,22 @@ classdef minHash
                 end
             end
 
-            % Remover duplicados locais (Propriedade de Conjunto)
             shingles = unique(shingles);
         end
 
-        % Cálculo da Assinatura com Vetorização Segura contra Overflow
+        % Cálculo da assinatura com vetorização, segura contra overflow
         function signature = getSignature(obj, elements)
-            % Conjunto vazio devolve infinito
             if isempty(elements)
                 signature = inf(obj.NumHashes, 1);
                 return;
             end
 
-            % Se os dados forem texto (shingles), converte para IDs numéricos de forma segura
+            % Se os dados forem texto , converte para IDs numéricos de forma segura
             if iscell(elements) || isstring(elements)
                 numericIds = zeros(1, length(elements));
                 for i = 1:length(elements)
                     str = double(elements{i});
                     
-                    % CORREÇÃO CRÍTICA: Regra de Horner com Modulo Iterativo
-                    % Evita estouro de precisão (overflow) do double em strings longas
                     h = 0;
                     for b = 1:numel(str)
                         h = mod(h * 31 + str(b), obj.Prime);
@@ -84,7 +81,7 @@ classdef minHash
                     numericIds(i) = h;
                 end
             else
-                % Se os IDs já forem numéricos (ex: IDs de filmes ou hashes pré-calculados)
+                % Se os IDs já forem numéricos
                 numericIds = double(reshape(elements, 1, []));
             end
 
@@ -95,31 +92,26 @@ classdef minHash
             signature = min(allHashes, [], 2);
         end
 
-        % Comparar duas Assinaturas (Estimador de Jaccard Clássico)
+        % Comparar duas Assinaturas
         function similarity = compareSignatures(~, sig1, sig2)
             similarity = sum(sig1 == sig2) / length(sig1);
         end
 
-        % NOVO MÉTODO: Comparação Matricial de Alta Performance Encapsulada
         % Compara todas as assinaturas entre si de forma ultra-vetorizada
         function J_matrix = computeSimilarityMatrix(obj, Signatures)
             Nu = size(Signatures, 2);
             J_matrix = zeros(Nu, Nu);
             k_hash = obj.NumHashes;
             
-            % Executa a comparação em bloco aproveitando a velocidade nativa do Matlab
             for n1 = 1:Nu-1
                 coincidencias = sum(Signatures(:, n1) == Signatures(:, n1+1:Nu), 1);
                 J_matrix(n1, n1+1:Nu) = coincidencias / k_hash;
             end
-            % Preenche a metade inferior por simetria
             J_matrix = J_matrix + J_matrix';
-            % A diagonal de um item com ele próprio é sempre 1
             J_matrix(1:Nu+1:end) = 1;
         end
 
-        % Calcular a Distância de Jaccard estimada (1 - Simetria)
-        % Aceita duas assinaturas isoladas ou duas matrizes
+        % Calcular a Distância de Jaccard estimada
         function distance = distanceJaccard(obj, sig1, sig2)
             if nargin < 3
                 % Se passar apenas uma matriz de semelhanças pré-calculada
